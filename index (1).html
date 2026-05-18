@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CourtMate">
+<meta name="theme-color" content="#0F1F0F">
+<title>CourtMate</title>
+
+<!-- Inline system font stack — no network needed, works offline -->
+<style>
+/* ── FONT STACK (system fonts, no Google Fonts needed) ── */
+:root {
+  --font-display: -apple-system, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  --font-body:    -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+
+  /* Brand colours */
+  --g:   #00C853;
+  --gd:  #007A2F;
+  --gl:  #E8F5E9;
+  --r:   #F44336;
+  --rl:  #FFEBEE;
+  --y:   #FF9800;
+  --yl:  #FFF8E1;
+
+  /* Past-slot grey */
+  --past-bg:  #EFEFEF;
+  --past-brd: #D0D0D0;
+  --past-txt: #AAAAAA;
+
+  /* Dark court tones */
+  --court:  #0F1F0F;
+  --court2: #192E19;
+
+  /* Surface */
+  --surf:  #FFFFFF;
+  --surf2: #F5F8F5;
+  --surf3: #EBF2EB;
+  --brd:   #DCE8DC;
+
+  /* Text */
+  --txt:  #0C190C;
+  --txt2: #3C593C;
+  --txt3: #789078;
+
+  /* Radii */
+  --rad:  14px;
+  --rads: 10px;
+
+  /* Safe-area insets — fallback to 0 for non-notch devices */
+  --sat: env(safe-area-inset-top,    0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left,   0px);
+  --sar: env(safe-area-inset-right,  0px);
+
+  --nav-h: 58px;
+  --bottom-pad: calc(var(--nav-h) + var(--sab));
+
+  /* Slot tile size */
+  --sw: 70px;
+  --sh: 62px;
+}
+
+/* ── RESET ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0; padding: 0;
+}
+
+/* ── HTML / BODY ──
+   KEY FIX: Do NOT set overflow:hidden on html+body — breaks iOS scroll.
+   Use 100dvh (dynamic viewport height) so the address bar doesn't cut content. */
+html, body {
+  width: 100%;
+  height: 100%;
+  /* dvh = dynamic viewport height, accounts for iOS address bar */
+  min-height: 100dvh;
+}
+body {
+  font-family: var(--font-body);
+  background: var(--court);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  /* Allow body scroll — screens clip themselves */
+  overflow: hidden;
+}
+
+/* ── APP SHELL ── */
+#app {
+  position: fixed;          /* KEY FIX: fixed, not relative */
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: var(--surf2);
+  overflow: hidden;
+}
+
+/* ── SCREENS ──
+   KEY FIX: position:fixed instead of absolute + inset shorthand
+   (inset: shorthand not supported in iOS Safari < 14.5) */
+.screen {
+  display: none;
+  flex-direction: column;
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;   /* explicit, no shorthand */
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;       /* momentum scroll iOS */
+  background: var(--surf2);
+}
+.screen.active { display: flex; }
+
+/* Directional slide transitions */
+@keyframes slideInR  { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes slideInL  { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes slideOutL { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@keyframes slideOutR { from { transform: translateX(0); } to { transform: translateX(100%); } }
+.anim-in-r  { animation: slideInR  .26s ease forwards; }
+.anim-in-l  { animation: slideInL  .26s ease forwards; }
+.anim-out-l { animation: slideOutL .26s ease forwards; pointer-events: none; }
+.anim-out-r { animation: slideOutR .26s ease forwards; pointer-events: none; }
+
+/* ── SAFE-AREA TOP FILLER ── */
+.sat-fill {
+  flex-shrink: 0;
+  height: var(--sat);
+  background: var(--court2);
+}
+.sat-fill-light { background: var(--surf2); }
+
+/* ── TOP BAR ── */
+.topbar {
+  flex-shrink: 0;
+  background: var(--court2);
+  padding: 10px 18px 14px;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-align-items: center;
+  align-items: center;
+  gap: 10px;
+}
+.tb-back {
+  width: 36px; height: 36px; min-width: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.09);
+  border: none; outline: none;
+  color: #fff; font-size: 22px;
+  cursor: pointer;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+}
+.tb-back:active { opacity: .6; }
+.tb-title {
+  font-family: var(--font-display);
+  font-size: 17px; font-weight: 700;
+  color: #fff; letter-spacing: -.3px;
+  -webkit-flex: 1; flex: 1;
+}
+.tb-badge {
+  font-size: 11px; color: var(--g); font-weight: 600;
+  background: rgba(0,200,83,.12);
+  border: 1px solid rgba(0,200,83,.25);
+  padding: 4px 10px; border-radius: 50px;
+  white-space: nowrap;
+}
+.tb-clock-wrap {
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-align-items: flex-end; align-items: flex-end;
+  -webkit-flex-shrink: 0; flex-shrink: 0;
+}
+.tb-clock {
+  font-family: var(--font-display);
+  font-size: 16px; font-weight: 700; color: #fff;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  gap: 4px; line-height: 1;
+}
+.tb-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--g);
+  animation: blink 1.2s ease infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.1} }
+.tb-date { font-size: 10px; color: rgba(255,255,255,.35); margin-top: 3px; white-space: nowrap; }
+
+/* PROGRESS */
+.prog-wrap { flex-shrink: 0; background: var(--court2); padding: 0 18px 12px; }
+.prog-track { background: rgba(255,255,255,.1); border-radius: 4px; height: 3px; }
+.prog-fill  { background: var(--g); height: 3px; border-radius: 4px; transition: width .35s ease; }
+
+/* ── SPLASH ── */
+#splash {
+  background: var(--court);
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  gap: 12px;
+  padding-top: calc(var(--sat) + 32px);
+  padding-bottom: calc(var(--sab) + 32px);
+  padding-left: 28px; padding-right: 28px;
+}
+.sp-logo {
+  width: 88px; height: 88px; border-radius: 24px;
+  background: linear-gradient(145deg, #00C853, #007A2F);
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  font-size: 44px;
+  box-shadow: 0 10px 36px rgba(0,200,83,.38);
+  margin-bottom: 4px;
+  animation: popIn .55s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes popIn { from { transform: scale(0.4); opacity: 0; } }
+.sp-title {
+  font-family: var(--font-display);
+  font-size: 34px; font-weight: 800;
+  color: #fff; letter-spacing: -1px;
+}
+.sp-sub { font-size: 14px; color: rgba(255,255,255,.42); }
+.sp-pill {
+  margin-top: 8px;
+  background: rgba(0,200,83,.12);
+  border: 1px solid rgba(0,200,83,.28);
+  border-radius: 50px; padding: 8px 20px;
+  font-size: 13px; color: #4ade80; font-weight: 500;
+}
+.big-btn {
+  width: 100%; min-height: 56px;
+  background: var(--g); color: #fff; border: none; outline: none;
+  padding: 16px;
+  border-radius: 50px;
+  font-family: var(--font-body);
+  font-size: 17px; font-weight: 600;
+  cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+  transition: opacity .1s;
+}
+.big-btn:active { opacity: .78; }
+.sp-ios-hint {
+  font-size: 12px; color: rgba(255,255,255,.22);
+  text-align: center; line-height: 1.6;
+}
+
+/* ── FORM ── */
+.form-body {
+  -webkit-flex: 1; flex: 1;
+  padding: 20px 18px;
+  padding-bottom: calc(var(--bottom-pad) + 20px);
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  gap: 18px;
+}
+.f-label {
+  font-size: 11px; font-weight: 600; color: var(--txt3);
+  text-transform: uppercase; letter-spacing: .8px;
+  margin-bottom: 8px;
+}
+/* KEY FIX: font-size 16px prevents iOS auto-zoom on input focus */
+.f-input {
+  width: 100%;
+  background: var(--surf);
+  border: 1.5px solid var(--brd);
+  border-radius: var(--rads);
+  padding: 15px 16px;
+  font-size: 16px;
+  font-family: var(--font-body);
+  color: var(--txt);
+  outline: none;
+  -webkit-appearance: none; appearance: none;
+  /* iOS quirk: remove inner shadow */
+  box-shadow: inset 0 0 0 transparent;
+  transition: border-color .2s;
+}
+.f-input:focus { border-color: var(--g); }
+.info-box {
+  background: var(--surf);
+  border: 1.5px solid var(--brd);
+  border-radius: var(--rads);
+  padding: 14px 16px;
+  font-size: 14px; color: var(--txt2); line-height: 1.85;
+}
+.cta {
+  margin-top: auto;
+}
+
+/* ── VENUE HERO ── */
+.venue-hero {
+  -webkit-flex-shrink: 0; flex-shrink: 0;
+  background: var(--court2);
+  padding: 0 18px 16px;
+}
+.venue-row {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  gap: 12px;
+}
+.venue-icon {
+  width: 46px; height: 46px; border-radius: 12px;
+  background: rgba(0,200,83,.14);
+  border: 1px solid rgba(0,200,83,.22);
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  font-size: 24px; -webkit-flex-shrink: 0; flex-shrink: 0;
+}
+.venue-name { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: #fff; }
+.venue-loc  { font-size: 12px; color: rgba(255,255,255,.4); margin-top: 2px; }
+.venue-pills {
+  display: -webkit-flex; display: flex;
+  gap: 6px; margin-top: 10px; -webkit-flex-wrap: wrap; flex-wrap: wrap;
+}
+.vpill {
+  font-size: 11px; font-weight: 500;
+  padding: 5px 11px; border-radius: 50px;
+  background: rgba(255,255,255,.07);
+  color: rgba(255,255,255,.58);
+  border: 1px solid rgba(255,255,255,.1);
+}
+
+/* ── DATE STRIP ── */
+.date-sec { padding: 16px 18px 0; -webkit-flex-shrink: 0; flex-shrink: 0; }
+.sec-lbl {
+  font-size: 11px; font-weight: 600; color: var(--txt3);
+  text-transform: uppercase; letter-spacing: .8px; margin-bottom: 10px;
+}
+.date-strip {
+  display: -webkit-flex; display: flex;
+  gap: 8px; overflow-x: auto; padding-bottom: 4px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.date-strip::-webkit-scrollbar { display: none; }
+.dchip {
+  min-width: 60px;
+  min-height: 72px;
+  background: var(--surf);
+  border: 1.5px solid var(--brd);
+  border-radius: 12px;
+  padding: 10px 8px;
+  text-align: center;
+  cursor: pointer;
+  -webkit-flex-shrink: 0; flex-shrink: 0;
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  gap: 2px;
+}
+.dchip:active { opacity: .65; }
+.dchip.sel { background: var(--court2); border-color: var(--court2); }
+.dc-day { font-size: 10px; font-weight: 600; color: var(--txt3); }
+.dc-num { font-size: 20px; font-weight: 700; color: var(--txt); line-height: 1; }
+.dc-mon { font-size: 10px; color: var(--txt3); }
+.dchip.sel .dc-day,
+.dchip.sel .dc-num,
+.dchip.sel .dc-mon { color: #fff; }
+
+/* ── LEGEND ── */
+.legend {
+  display: -webkit-flex; display: flex;
+  gap: 14px; padding: 14px 18px 0;
+  -webkit-flex-wrap: wrap; flex-wrap: wrap;
+  -webkit-flex-shrink: 0; flex-shrink: 0;
+}
+.leg-item {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  gap: 5px; font-size: 11px; color: var(--txt3); font-weight: 500;
+}
+.leg-dot { width: 9px; height: 9px; border-radius: 3px; }
+
+/* ── RAIL ── */
+.rail-section { padding: 14px 0 0; }
+.rail-hdr {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  padding: 0 18px 10px;
+  -webkit-justify-content: space-between; justify-content: space-between;
+}
+.rail-lbl { font-size: 11px; font-weight: 600; color: var(--txt3); text-transform: uppercase; letter-spacing: .8px; }
+.rail-cnt { font-size: 12px; color: var(--txt2); font-weight: 500; }
+.rail-cnt b { color: var(--gd); }
+
+.grp-lbl {
+  padding: 14px 18px 8px;
+  font-size: 11px; font-weight: 600; color: var(--txt3);
+  text-transform: uppercase; letter-spacing: .8px;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  gap: 8px;
+}
+.grp-lbl::after { content: ''; -webkit-flex: 1; flex: 1; height: 1px; background: var(--brd); }
+
+.rail-wrap {
+  overflow-x: auto;
+  padding: 2px 18px 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--brd) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.rail-wrap::-webkit-scrollbar { height: 3px; }
+.rail-wrap::-webkit-scrollbar-thumb { background: var(--brd); border-radius: 3px; }
+.rail { display: -webkit-flex; display: flex; gap: 0; min-width: -webkit-max-content; min-width: max-content; }
+
+/* ── SLOT TILES ── */
+.t-col {
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-align-items: center; align-items: center;
+  width: var(--sw); -webkit-flex-shrink: 0; flex-shrink: 0;
+}
+.t-lbl {
+  font-size: 10px; font-weight: 600; color: var(--txt3);
+  height: 20px;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  white-space: nowrap; letter-spacing: .2px;
+}
+.t-block {
+  width: calc(var(--sw) - 6px);
+  height: var(--sh);
+  border-radius: var(--rads);
+  margin: 0 3px;
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  position: relative;
+  border: 2px solid transparent;
+  gap: 3px;
+  transition: opacity .12s;
+}
+.t-block:active { opacity: .65; transform: scale(.93); }
+
+/* Status colours */
+.tb-avail   { background: var(--gl); border-color: #A5D6A7; cursor: pointer; }
+.tb-partial { background: var(--yl); border-color: #FFCC80; cursor: pointer; }
+.tb-full    { background: var(--rl); border-color: #EF9A9A; cursor: not-allowed; opacity: .65; }
+.tb-past    { background: var(--past-bg); border-color: var(--past-brd); cursor: not-allowed; opacity: .5; }
+.tb-now     { border-color: var(--y) !important; box-shadow: 0 0 0 3px rgba(255,152,0,.2); }
+.t-col.past-col .t-lbl { color: var(--past-txt); }
+.t-col.now-col  .t-lbl { color: var(--y); font-weight: 700; }
+.tb-sel { border-color: var(--g) !important; box-shadow: 0 0 0 4px rgba(0,200,83,.22); transform: scale(1.07) !important; }
+
+.tb-icon { font-size: 18px; line-height: 1; }
+.tb-cnt  { font-size: 10px; font-weight: 700; line-height: 1; }
+.tb-avail   .tb-cnt { color: var(--gd); }
+.tb-partial .tb-cnt { color: #7B4700; }
+.tb-full    .tb-cnt { color: #B71C1C; }
+.tb-past    .tb-cnt { color: var(--past-txt); }
+
+.now-rib {
+  position: absolute; top: 3px; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%);
+  font-size: 8px; font-weight: 700; color: #fff;
+  background: var(--y); border-radius: 4px; padding: 1px 5px;
+  white-space: nowrap;
+}
+.tb-cdown { font-size: 9px; font-weight: 700; color: var(--y); line-height: 1; }
+
+/* ── SELECTED BAR ── */
+.sel-bar {
+  -webkit-flex-shrink: 0; flex-shrink: 0;
+  margin: 12px 18px;
+  margin-bottom: calc(var(--bottom-pad) + 8px);
+  background: var(--court2);
+  border-radius: var(--rad);
+  padding: 14px 16px;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  gap: 10px;
+  transition: opacity .2s;
+  box-shadow: 0 4px 20px rgba(0,0,0,.18);
+}
+.sel-bar.hidden { opacity: 0; pointer-events: none; }
+.sel-bar-l { -webkit-flex: 1; flex: 1; min-width: 0; }
+.sel-time { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: #fff; }
+.sel-meta { font-size: 11px; color: rgba(255,255,255,.42); margin-top: 2px; }
+.sel-bdg  { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 50px; white-space: nowrap; -webkit-flex-shrink: 0; flex-shrink: 0; }
+.bdg-avail   { background: rgba(0,200,83,.14);  color: #4ade80; }
+.bdg-partial { background: rgba(255,152,0,.14); color: #FFB74D; }
+.next-btn {
+  background: var(--g); color: #fff; border: none; outline: none;
+  padding: 11px 18px; border-radius: 50px;
+  font-size: 14px; font-family: var(--font-body); font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  min-height: 44px; -webkit-flex-shrink: 0; flex-shrink: 0;
+}
+.next-btn:active { opacity: .75; }
+
+/* ── DETAILS ── */
+.slot-banner {
+  background: var(--court2); border-radius: var(--rad);
+  padding: 18px; color: #fff; position: relative; overflow: hidden;
+}
+.slot-banner::before {
+  content: '🏸'; position: absolute; right: 12px; top: 50%;
+  -webkit-transform: translateY(-50%); transform: translateY(-50%);
+  font-size: 52px; opacity: .07;
+}
+.sb-lbl  { font-size: 11px; color: rgba(255,255,255,.4); margin-bottom: 4px; font-weight: 600; }
+.sb-time { font-family: var(--font-display); font-size: 21px; font-weight: 700; }
+.sb-meta { font-size: 13px; color: rgba(255,255,255,.48); margin-top: 3px; }
+
+.stepper {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  background: var(--surf); border: 1.5px solid var(--brd);
+  border-radius: var(--rads); overflow: hidden;
+}
+.st-btn {
+  width: 56px; height: 56px; border: none; outline: none; background: transparent;
+  font-size: 28px; cursor: pointer; color: var(--txt);
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+}
+.st-btn:active { background: var(--surf3); }
+.st-btn:disabled { color: var(--brd); cursor: not-allowed; }
+.st-val { -webkit-flex: 1; flex: 1; text-align: center; font-size: 26px; font-weight: 700; color: var(--txt); }
+
+.open-banner {
+  background: var(--gl); border: 1px solid #A5D6A7;
+  border-radius: var(--rads); padding: 12px 16px;
+  font-size: 14px; color: var(--gd);
+  display: -webkit-flex; display: flex; gap: 8px;
+  -webkit-align-items: flex-start; align-items: flex-start; line-height: 1.5;
+}
+.skill-grid {
+  display: -webkit-flex; display: flex; gap: 8px;
+}
+.sk-btn {
+  -webkit-flex: 1; flex: 1;
+  min-height: 66px;
+  padding: 12px 4px;
+  border: 1.5px solid var(--brd); border-radius: var(--rads);
+  background: var(--surf);
+  font-size: 12px; font-family: var(--font-body);
+  cursor: pointer; color: var(--txt3);
+  text-align: center; font-weight: 600; line-height: 1.6;
+  -webkit-appearance: none; appearance: none;
+}
+.sk-btn:active { opacity: .7; }
+.sk-sel-beginner     { background: #E3F2FD; border-color: #42A5F5; color: #1565C0; }
+.sk-sel-intermediate { background: #FFF8E1; border-color: #FFB300; color: #E65100; }
+.sk-sel-advanced     { background: #FCE4EC; border-color: #EC407A; color: #880E4F; }
+
+/* ── REVIEW ── */
+.rv-hero  { background: var(--court2); padding: 20px 18px; color: #fff; -webkit-flex-shrink: 0; flex-shrink: 0; }
+.rv-court { font-family: var(--font-display); font-size: 20px; font-weight: 800; }
+.rv-soc   { font-size: 12px; color: rgba(255,255,255,.4); margin-top: 3px; }
+.rv-card  { background: var(--surf); margin: 14px 18px; border-radius: var(--rad); border: 1.5px solid var(--brd); overflow: hidden; }
+.rv-row   { display: -webkit-flex; display: flex; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--brd); }
+.rv-row:last-child { border-bottom: none; }
+.rv-lbl   { font-size: 13px; color: var(--txt3); }
+.rv-val   { font-size: 13px; font-weight: 600; color: var(--txt); text-align: right; max-width: 56%; }
+.oc-sec   { padding: 0 18px 4px; }
+.oc-ttl   { font-size: 11px; font-weight: 600; color: var(--txt3); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .5px; }
+.oc-chips { display: -webkit-flex; display: flex; gap: 8px; -webkit-flex-wrap: wrap; flex-wrap: wrap; }
+.oc-chip  { background: var(--gl); border: 1.5px dashed var(--g); color: var(--gd); padding: 7px 16px; border-radius: 50px; font-size: 12px; font-weight: 600; }
+
+/* ── SUCCESS ── */
+#success {
+  background: var(--court);
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  gap: 14px; text-align: center;
+  padding-top: calc(var(--sat) + 40px);
+  padding-bottom: calc(var(--sab) + 40px);
+  padding-left: 24px; padding-right: 24px;
+}
+.sc-ring {
+  width: 88px; height: 88px; border-radius: 50%;
+  background: var(--g);
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  font-size: 40px;
+  box-shadow: 0 0 48px rgba(0,200,83,.38);
+  animation: popIn .5s cubic-bezier(.34,1.56,.64,1);
+}
+.sc-title { font-family: var(--font-display); font-size: 28px; font-weight: 800; color: #fff; }
+.sc-sub   { font-size: 14px; color: rgba(255,255,255,.48); line-height: 1.7; }
+.sc-ref   { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: var(--rad); padding: 14px 20px; width: 100%; }
+.sc-rl    { font-size: 10px; color: rgba(255,255,255,.3); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 5px; }
+.sc-rv    { font-family: var(--font-display); font-size: 24px; font-weight: 700; color: #fff; letter-spacing: 2px; }
+.sc-dets  { width: 100%; background: rgba(255,255,255,.04); border-radius: var(--rad); padding: 14px; }
+.sc-row   { display: -webkit-flex; display: flex; -webkit-justify-content: space-between; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+.sc-row:last-child { border-bottom: none; }
+.scl { font-size: 13px; color: rgba(255,255,255,.38); }
+.scv { font-size: 13px; color: #fff; font-weight: 600; }
+
+/* ── BOTTOM NAV ── */
+.bnav {
+  position: fixed;
+  bottom: 0; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%);
+  width: 100%; max-width: 430px;
+  background: var(--surf);
+  border-top: 1px solid var(--brd);
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: flex-start; align-items: flex-start;
+  padding-top: 8px;
+  padding-bottom: var(--sab);
+  z-index: 50;
+  display: none; /* shown via JS */
+}
+.bnav.show { display: -webkit-flex; display: flex; }
+.bnav-btn {
+  -webkit-flex: 1; flex: 1;
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-align-items: center; align-items: center;
+  gap: 3px; padding: 4px 0;
+  border: none; outline: none; background: transparent;
+  cursor: pointer; color: var(--txt3);
+  font-family: var(--font-body);
+}
+.bnav-btn:active { opacity: .5; }
+.bnav-btn.on { color: var(--g); }
+.bnav-ico { font-size: 22px; line-height: 1; }
+.bnav-lbl { font-size: 10px; font-weight: 600; letter-spacing: .1px; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: calc(var(--bottom-pad) + 16px);
+  left: 50%; -webkit-transform: translateX(-50%) translateY(6px); transform: translateX(-50%) translateY(6px);
+  background: rgba(12,25,12,.9);
+  color: #fff; padding: 12px 22px; border-radius: 50px;
+  font-size: 14px; font-weight: 500;
+  opacity: 0; pointer-events: none;
+  transition: opacity .22s, -webkit-transform .22s, transform .22s;
+  z-index: 200;
+  white-space: nowrap; max-width: 88%;
+  text-align: center;
+}
+.toast.show { opacity: 1; -webkit-transform: translateX(-50%) translateY(0); transform: translateX(-50%) translateY(0); }
+
+/* ── FLASH animation ── */
+@keyframes flashPulse { 0%{-webkit-filter:brightness(1.8);filter:brightness(1.8)} 100%{-webkit-filter:brightness(1);filter:brightness(1)} }
+.flashing { animation: flashPulse .8s ease forwards; }
+
+/* ── iOS specific: push content above keyboard ── */
+@supports (-webkit-touch-callout: none) {
+  .screen { padding-bottom: 0; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ════════ SPLASH ════════ -->
+  <div class="screen active" id="splash">
+    <div class="sp-logo">🏸</div>
+    <div class="sp-title">CourtMate</div>
+    <div class="sp-sub">Greenview Society · Bengaluru</div>
+    <div class="sp-pill">⏰ &nbsp;5:00 AM – 11:00 PM &nbsp;·&nbsp; 1-hour slots</div>
+    <button class="big-btn" onclick="go('login',1)" style="margin-top:28px;">Get Started</button>
+    <div class="sp-ios-hint" style="margin-top:14px;">
+      iPhone: tap <strong style="color:rgba(255,255,255,.45)">Share → Add to Home Screen</strong><br>
+      Android: tap <strong style="color:rgba(255,255,255,.45)">⋮ → Add to Home Screen</strong>
+    </div>
+  </div>
+
+  <!-- ════════ LOGIN ════════ -->
+  <div class="screen" id="login">
+    <div class="sat-fill"></div>
+    <div class="topbar">
+      <div class="tb-title">Welcome 👋</div>
+      <div class="tb-badge">Members only</div>
+    </div>
+    <div class="prog-wrap"><div class="prog-track"><div class="prog-fill" style="width:25%"></div></div></div>
+    <div class="form-body">
+      <div>
+        <div class="f-label">Apartment Number</div>
+        <input class="f-input" id="apt" type="text" placeholder="e.g. A-304"
+          autocomplete="off" autocorrect="off" autocapitalize="characters"
+          spellcheck="false" inputmode="text" enterkeyhint="next">
+      </div>
+      <div>
+        <div class="f-label">Resident Name</div>
+        <input class="f-input" id="rname" type="text" placeholder="Full name"
+          autocomplete="name" autocorrect="off" spellcheck="false" enterkeyhint="go">
+      </div>
+      <div class="info-box">
+        🔒 &nbsp;Registered residents only<br>
+        ⏰ &nbsp;Court hours: <strong>5:00 AM – 11:00 PM</strong><br>
+        📅 &nbsp;Book within a 24-hour window<br>
+        ⏱ &nbsp;Max 1 hour per slot
+      </div>
+      <button class="big-btn cta" onclick="doLogin()">Continue →</button>
+    </div>
+  </div>
+
+  <!-- ════════ SLOTS ════════ -->
+  <div class="screen" id="slots">
+    <div class="sat-fill"></div>
+    <div class="topbar">
+      <button class="tb-back" onclick="go('login',-1)" aria-label="Back">‹</button>
+      <div class="tb-title">Court A — Block 3</div>
+      <div class="tb-clock-wrap">
+        <div class="tb-clock"><div class="tb-dot"></div><span id="clk-time">--:--</span></div>
+        <div class="tb-date" id="clk-date">---</div>
+      </div>
+    </div>
+    <div class="prog-wrap"><div class="prog-track"><div class="prog-fill" style="width:40%"></div></div></div>
+
+    <div class="venue-hero">
+      <div class="venue-row">
+        <div class="venue-icon">🏟️</div>
+        <div>
+          <div class="venue-name">Greenview Badminton Court</div>
+          <div class="venue-loc">📍 Block 3, Society Campus</div>
+        </div>
+      </div>
+      <div class="venue-pills">
+        <span class="vpill">🏸 Badminton</span>
+        <span class="vpill">4 players/slot</span>
+        <span class="vpill">1 hr · indoor</span>
+      </div>
+    </div>
+
+    <div class="date-sec">
+      <div class="sec-lbl">Select Date</div>
+      <div class="date-strip" id="date-strip"></div>
+    </div>
+
+    <div class="legend">
+      <div class="leg-item"><div class="leg-dot" style="background:var(--g)"></div>Available</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--y)"></div>Filling up</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--r)"></div>Full</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--past-brd)"></div>Expired</div>
+    </div>
+
+    <div class="rail-section" id="rail-root"></div>
+
+    <div class="sel-bar hidden" id="sel-bar">
+      <div class="sel-bar-l">
+        <div class="sel-time" id="sb-time">—</div>
+        <div class="sel-meta" id="sb-meta">—</div>
+      </div>
+      <span class="sel-bdg" id="sb-bdg"></span>
+      <button class="next-btn" onclick="goDetails()">Next →</button>
+    </div>
+
+    <!-- bottom nav padding -->
+    <div style="height:calc(var(--bottom-pad) + 16px); -webkit-flex-shrink:0; flex-shrink:0;"></div>
+  </div>
+
+  <!-- ════════ DETAILS ════════ -->
+  <div class="screen" id="details">
+    <div class="sat-fill"></div>
+    <div class="topbar">
+      <button class="tb-back" onclick="go('slots',-1)" aria-label="Back">‹</button>
+      <div class="tb-title">Your Players</div>
+      <div class="tb-badge">Step 2 of 3</div>
+    </div>
+    <div class="prog-wrap"><div class="prog-track"><div class="prog-fill" style="width:70%"></div></div></div>
+    <div class="form-body">
+      <div class="slot-banner">
+        <div class="sb-lbl">Selected Slot</div>
+        <div class="sb-time" id="det-time">—</div>
+        <div class="sb-meta" id="det-meta">—</div>
+      </div>
+      <div>
+        <div class="f-label">Players you're bringing</div>
+        <div class="stepper">
+          <button class="st-btn" id="st-minus" onclick="stepP(-1)">−</button>
+          <div class="st-val" id="p-disp">1</div>
+          <button class="st-btn" id="st-plus"  onclick="stepP(1)">+</button>
+        </div>
+        <div style="font-size:13px;color:var(--txt3);margin-top:8px;line-height:1.5;">
+          Slots need exactly 4 players. Open spots listed for others to join.
+        </div>
+      </div>
+      <div id="oi-box" class="open-banner" style="display:none">
+        <span>🟢</span><span id="oi-txt"></span>
+      </div>
+      <div>
+        <div class="f-label">Skill Level</div>
+        <div class="skill-grid">
+          <button class="sk-btn" data-sk="beginner"     onclick="setSkill('beginner')">🟦<br>Beginner</button>
+          <button class="sk-btn" data-sk="intermediate" onclick="setSkill('intermediate')">🟨<br>Inter<br>mediate</button>
+          <button class="sk-btn" data-sk="advanced"     onclick="setSkill('advanced')">🟥<br>Advanced</button>
+        </div>
+      </div>
+      <button class="big-btn cta" onclick="goReview()">Review Booking →</button>
+    </div>
+  </div>
+
+  <!-- ════════ REVIEW ════════ -->
+  <div class="screen" id="review">
+    <div class="sat-fill"></div>
+    <div class="topbar">
+      <button class="tb-back" onclick="go('details',-1)" aria-label="Back">‹</button>
+      <div class="tb-title">Confirm Booking</div>
+      <div class="tb-badge">Step 3 of 3</div>
+    </div>
+    <div class="prog-wrap"><div class="prog-track"><div class="prog-fill" style="width:90%"></div></div></div>
+    <div class="rv-hero">
+      <div class="rv-court">Court A — Block 3</div>
+      <div class="rv-soc">Greenview Society · Bengaluru</div>
+    </div>
+    <div class="rv-card">
+      <div class="rv-row"><span class="rv-lbl">Resident</span>  <span class="rv-val" id="rv-name">—</span></div>
+      <div class="rv-row"><span class="rv-lbl">Apartment</span> <span class="rv-val" id="rv-apt">—</span></div>
+      <div class="rv-row"><span class="rv-lbl">Date</span>      <span class="rv-val" id="rv-date">—</span></div>
+      <div class="rv-row"><span class="rv-lbl">Time</span>      <span class="rv-val" id="rv-time">—</span></div>
+      <div class="rv-row"><span class="rv-lbl">Duration</span>  <span class="rv-val">1 hour</span></div>
+      <div class="rv-row"><span class="rv-lbl">Skill</span>     <span class="rv-val" id="rv-skill">—</span></div>
+      <div class="rv-row"><span class="rv-lbl">Players</span>   <span class="rv-val" id="rv-players">—</span></div>
+    </div>
+    <div class="oc-sec" id="rv-open-wrap" style="display:none">
+      <div class="oc-ttl">Open spots for others to join</div>
+      <div class="oc-chips" id="rv-open-chips"></div>
+    </div>
+    <div style="padding:14px 18px 0;font-size:13px;color:var(--txt3);line-height:1.9;">
+      ⚠️ Booking valid within 24 hrs<br>
+      ❌ Cancel at least 1 hour prior
+    </div>
+    <div style="padding:16px 18px; padding-bottom: calc(var(--bottom-pad) + 16px);">
+      <button class="big-btn" onclick="confirmBooking()">Confirm &amp; Book 🏸</button>
+    </div>
+  </div>
+
+  <!-- ════════ SUCCESS ════════ -->
+  <div class="screen" id="success">
+    <div class="sc-ring">✓</div>
+    <div class="sc-title">All set!</div>
+    <div class="sc-sub">Court booked.<br>Show this at the entrance.</div>
+    <div class="sc-ref">
+      <div class="sc-rl">Booking ID</div>
+      <div class="sc-rv" id="sc-ref-val">—</div>
+    </div>
+    <div class="sc-dets">
+      <div class="sc-row"><span class="scl">Court</span>      <span class="scv">Court A — Block 3</span></div>
+      <div class="sc-row"><span class="scl">Date &amp; Time</span><span class="scv" id="sc-dt">—</span></div>
+      <div class="sc-row"><span class="scl">Duration</span>    <span class="scv">1 hour</span></div>
+      <div class="sc-row"><span class="scl">Skill</span>       <span class="scv" id="sc-skill">—</span></div>
+      <div class="sc-row" id="sc-open-row"><span class="scl">Open spots</span><span class="scv" id="sc-open">—</span></div>
+    </div>
+    <button class="big-btn" onclick="goViewSlots()">View All Slots</button>
+  </div>
+
+</div><!-- #app -->
+
+<!-- Bottom nav — outside #app so it's always on top -->
+<nav class="bnav" id="bnav">
+  <button class="bnav-btn on" onclick="navBook()">
+    <span class="bnav-ico">🏸</span><span class="bnav-lbl">Book</span>
+  </button>
+  <button class="bnav-btn" onclick="toast('My Bookings — coming soon')">
+    <span class="bnav-ico">📋</span><span class="bnav-lbl">My Slots</span>
+  </button>
+  <button class="bnav-btn" onclick="toast('Leaderboard — coming soon')">
+    <span class="bnav-ico">🏆</span><span class="bnav-lbl">Leaders</span>
+  </button>
+  <button class="bnav-btn" onclick="toast('Profile — coming soon')">
+    <span class="bnav-ico">👤</span><span class="bnav-lbl">Profile</span>
+  </button>
+</nav>
+
+<div class="toast" id="tst"></div>
+
+<script>
+/* ══════════ CONSTANTS ══════════ */
+var DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var SKILLS = ['beginner','intermediate','advanced'];
+var SKILL_LABELS = {beginner:'Beginner', intermediate:'Intermediate', advanced:'Advanced'};
+
+/* ══════════ SLOT DB ══════════ */
+var slotDB = {};
+function fmtD(d) { return d.toISOString().split('T')[0]; }
+function sKey(ds,t) { return ds+'|'+t; }
+function gSlot(ds,t) { return slotDB[sKey(ds,t)] || {players:0, skill:null}; }
+function sSlot(ds,t,p,sk) { slotDB[sKey(ds,t)] = {players:p, skill:sk}; }
+function bStatus(ds,t) {
+  var s = gSlot(ds,t);
+  if (s.players>=4) return 'full';
+  if (s.players>0)  return 'partial';
+  return 'avail';
+}
+function nowMins() { var n=new Date(); return n.getHours()*60+n.getMinutes(); }
+function todayStr() { return fmtD(new Date()); }
+function slotState(ds,t) {
+  if (ds !== todayStr()) return 'active';
+  var h=parseInt(t), sm=h*60, em=(h+1)*60, cm=nowMins();
+  if (em<=cm) return 'past';
+  if (sm<=cm && cm<em) return 'now';
+  return 'active';
+}
+function minsLeft(h) { return Math.max(0,(h+1)*60-nowMins())+'m left'; }
+
+function seedMocks() {
+  var td=fmtD(new Date()), tm=fmtD(new Date(Date.now()+86400000));
+  sSlot(td,'07:00',2,'beginner');   sSlot(td,'09:00',3,'intermediate');
+  sSlot(td,'11:00',1,'beginner');   sSlot(td,'14:00',4,'advanced');
+  sSlot(td,'16:00',2,'intermediate');sSlot(td,'19:00',3,'advanced');
+  sSlot(td,'21:00',4,'beginner');
+  sSlot(tm,'06:00',2,'intermediate');sSlot(tm,'08:00',4,'advanced');
+  sSlot(tm,'12:00',3,'beginner');   sSlot(tm,'17:00',1,'advanced');
+  sSlot(tm,'20:00',4,'intermediate');sSlot(tm,'22:00',2,'beginner');
+}
+
+/* ══════════ APP STATE ══════════ */
+var S = {apt:'', name:'', dateStr:null, dateObj:null,
+         slot:null, slotEnd:null, slotSkill:null,
+         players:1, skill:null, lastSlot:null};
+var curScreen = 'splash';
+
+/* ══════════ NAVIGATION ══════════ */
+function go(id, dir) {
+  if (typeof dir === 'undefined') dir = 1;
+  var prev = document.getElementById(curScreen);
+  var next = document.getElementById(id);
+  var showNav = (id==='slots'||id==='details'||id==='review');
+  document.getElementById('bnav').className = showNav ? 'bnav show' : 'bnav';
+
+  /* colour the status-bar spacer */
+  var darkBg = (id==='splash'||id==='success');
+  var fills = next.querySelectorAll('.sat-fill');
+  for (var i=0; i<fills.length; i++) {
+    fills[i].style.background = darkBg ? 'var(--court)' : 'var(--court2)';
+  }
+
+  prev.style.zIndex = '1';
+  next.style.zIndex = '2';
+  next.className = 'screen active ' + (dir>=0 ? 'anim-in-r' : 'anim-in-l');
+  prev.className = 'screen active ' + (dir>=0 ? 'anim-out-l' : 'anim-out-r');
+
+  setTimeout(function() {
+    prev.className = 'screen';
+    next.className = 'screen active';
+    prev.style.zIndex = ''; next.style.zIndex = '';
+    curScreen = id;
+    next.scrollTop = 0;
+  }, 270);
+}
+
+/* ══════════ HAPTIC ══════════ */
+function haptic(type) {
+  if ('vibrate' in navigator) {
+    navigator.vibrate(type==='heavy'?[30]:type==='medium'?[15]:([10]));
+  }
+}
+
+/* ══════════ TOAST ══════════ */
+function toast(msg) {
+  haptic('light');
+  var t = document.getElementById('tst');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2500);
+}
+/* also expose as showToast for consistency */
+var showToast = toast;
+
+/* ══════════ LIVE CLOCK ══════════ */
+function p2(n) { return ('0'+n).slice(-2); }
+var lastMin = -1;
+function tickClock() {
+  var now = new Date();
+  var h=now.getHours(), m=now.getMinutes();
+  var ampm = h<12?'AM':'PM';
+  var h12  = h===0?12:(h>12?h-12:h);
+  document.getElementById('clk-time').textContent = p2(h12)+':'+p2(m)+' '+ampm;
+  document.getElementById('clk-date').textContent =
+    DAYS[now.getDay()]+', '+now.getDate()+' '+MONTHS[now.getMonth()];
+  if (m !== lastMin) {
+    lastMin = m;
+    if (curScreen==='slots') renderRail();
+  }
+  /* live countdown */
+  var cd = document.getElementById('now-cd');
+  if (cd) cd.textContent = minsLeft(parseInt(cd.getAttribute('data-h')));
+}
+
+/* ══════════ LOGIN ══════════ */
+function doLogin() {
+  var apt = document.getElementById('apt').value.trim();
+  var nm  = document.getElementById('rname').value.trim();
+  if (!apt) { toast('Enter your apartment number'); return; }
+  if (!nm)  { toast('Enter your name'); return; }
+  S.apt=apt; S.name=nm;
+  haptic('medium');
+  buildDateStrip();
+  go('slots', 1);
+}
+
+/* ══════════ DATE STRIP ══════════ */
+function buildDateStrip() {
+  var strip = document.getElementById('date-strip');
+  strip.innerHTML = '';
+  var now = new Date();
+  for (var i=0; i<=1; i++) {
+    var d = new Date(now); d.setDate(now.getDate()+i);
+    var ds = fmtD(d);
+    var chip = document.createElement('div');
+    chip.className = 'dchip' + (i===0?' sel':'');
+    chip.innerHTML =
+      '<div class="dc-day">'+(i===0?'Today':DAYS[d.getDay()])+'</div>'+
+      '<div class="dc-num">'+d.getDate()+'</div>'+
+      '<div class="dc-mon">'+MONTHS[d.getMonth()]+'</div>';
+    (function(chip, d, ds){
+      chip.addEventListener('click', function(){
+        haptic('light');
+        document.querySelectorAll('.dchip').forEach(function(c){ c.classList.remove('sel'); });
+        chip.classList.add('sel');
+        S.dateObj=d; S.dateStr=ds; S.slot=null;
+        renderRail(); updateSelBar();
+      });
+    })(chip, d, ds);
+    strip.appendChild(chip);
+  }
+  S.dateObj=now; S.dateStr=fmtD(now);
+  renderRail();
+}
+
+/* ══════════ RENDER RAIL ══════════ */
+function tLabel(t) {
+  var h = parseInt(t), ampm = h<12?'AM':'PM';
+  return (h===0?12:(h>12?h-12:h))+ampm;
+}
+function renderRail() {
+  var root = document.getElementById('rail-root');
+  root.innerHTML = '';
+  var ds = S.dateStr;
+  var all = [];
+  for (var h=5; h<=22; h++) all.push((h<10?'0':'')+h+':00');
+
+  var bookable = all.filter(function(t){ return slotState(ds,t)!=='past' && bStatus(ds,t)!=='full'; }).length;
+
+  /* Header */
+  var hdr = document.createElement('div');
+  hdr.className = 'rail-hdr';
+  hdr.innerHTML = '<div class="rail-lbl">Court Availability</div><div class="rail-cnt"><b>'+bookable+'</b>&nbsp;slots open</div>';
+  root.appendChild(hdr);
+
+  var groups = [
+    {label:'☀️ Morning',  slots:all.filter(function(t){ return parseInt(t)<12; })},
+    {label:'🌤 Afternoon', slots:all.filter(function(t){ var h=parseInt(t); return h>=12&&h<17; })},
+    {label:'🌆 Evening',  slots:all.filter(function(t){ return parseInt(t)>=17; })},
+  ];
+
+  groups.forEach(function(grp) {
+    if (!grp.slots.length) return;
+
+    var glbl = document.createElement('div');
+    glbl.className = 'grp-lbl';
+    glbl.textContent = grp.label;
+    root.appendChild(glbl);
+
+    var wrap = document.createElement('div');
+    wrap.className = 'rail-wrap';
+    var rail = document.createElement('div');
+    rail.className = 'rail';
+
+    grp.slots.forEach(function(t, idx) {
+      var h    = parseInt(t);
+      var eStr = (h+1<10?'0':''+(h+1))+':00';
+      var sd   = gSlot(ds,t);
+      var bst  = bStatus(ds,t);
+      var ss   = slotState(ds,t);
+      var isNow= (ss==='now' && bst!=='full');
+
+      var visClass;
+      if      (ss==='past')       visClass = 'tb-past';
+      else if (bst==='full')      visClass = 'tb-full';
+      else if (bst==='partial')   visClass = 'tb-partial';
+      else                        visClass = 'tb-avail';
+
+      var col = document.createElement('div');
+      col.className = 't-col' + (ss==='past'?' past-col':(ss==='now'?' now-col':''));
+
+      var lbl = document.createElement('div');
+      lbl.className = 't-lbl';
+      lbl.textContent = tLabel(t);
+      col.appendChild(lbl);
+
+      var blk = document.createElement('div');
+      blk.id  = 'blk-'+t.replace(':','');
+      blk.className = 't-block '+visClass+(isNow?' tb-now':'')+(S.slot===t?' tb-sel':'');
+
+      if (isNow) {
+        var rib = document.createElement('div');
+        rib.className = 'now-rib'; rib.textContent = 'NOW';
+        blk.appendChild(rib);
+      }
+
+      var ico = document.createElement('div');
+      ico.className = 'tb-icon';
+      ico.textContent = ss==='past'?'🔒':(bst==='full'?'⛔':(bst==='partial'?'⚡':'✅'));
+      blk.appendChild(ico);
+
+      var cnt = document.createElement('div');
+      cnt.className = 'tb-cnt';
+      cnt.textContent = ss==='past'?'——':(sd.players+'/4');
+      blk.appendChild(cnt);
+
+      if (isNow) {
+        var cd = document.createElement('div');
+        cd.className = 'tb-cdown'; cd.id = 'now-cd';
+        cd.setAttribute('data-h', h);
+        cd.textContent = minsLeft(h);
+        blk.appendChild(cd);
+      }
+
+      if (ss!=='past' && bst!=='full') {
+        (function(blk,t,eStr,idx){
+          blk.addEventListener('click', function(){
+            haptic('medium');
+            selectSlot(t, eStr, gSlot(ds,t).skill || SKILLS[idx%3]);
+          });
+        })(blk,t,eStr,idx);
+      }
+
+      col.appendChild(blk); rail.appendChild(col);
+    }); /* end slots.forEach */
+
+    wrap.appendChild(rail); root.appendChild(wrap);
+  }); /* end groups.forEach */
+
+  /* Auto-scroll to first non-past slot */
+  if (ds === todayStr()) {
+    var first = all.find(function(t){ return slotState(ds,t)!=='past'; });
+    if (first) {
+      setTimeout(function(){
+        var blk = document.getElementById('blk-'+first.replace(':',''));
+        if (blk) blk.scrollIntoView({behavior:'smooth', block:'nearest', inline:'start'});
+      }, 100);
+    }
+  }
+}
+
+/* ══════════ SELECT SLOT ══════════ */
+function selectSlot(t, endStr, skill) {
+  if (slotState(S.dateStr, t)==='past') { toast('This slot has already passed'); return; }
+  S.slot=t; S.slotEnd=endStr; S.slotSkill=skill;
+  renderRail(); updateSelBar();
+  setTimeout(function(){
+    var blk=document.getElementById('blk-'+t.replace(':',''));
+    if(blk) blk.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+  }, 60);
+}
+function updateSelBar() {
+  var bar = document.getElementById('sel-bar');
+  if (!S.slot) { bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+  var sd   = gSlot(S.dateStr, S.slot);
+  var bst  = bStatus(S.dateStr, S.slot);
+  var open = 4 - sd.players;
+  var dl   = DAYS[S.dateObj.getDay()]+', '+S.dateObj.getDate()+' '+MONTHS[S.dateObj.getMonth()];
+  document.getElementById('sb-time').textContent = S.slot+' – '+S.slotEnd;
+  document.getElementById('sb-meta').textContent = dl+' · '+open+' spot'+(open!==1?'s':'')+' open';
+  var bdg = document.getElementById('sb-bdg');
+  if (bst==='partial') { bdg.className='sel-bdg bdg-partial'; bdg.textContent=open+' open'; }
+  else                 { bdg.className='sel-bdg bdg-avail';   bdg.textContent='Available'; }
+}
+
+/* ══════════ DETAILS ══════════ */
+function goDetails() {
+  if (!S.slot) { toast('Tap a time slot first'); return; }
+  if (slotState(S.dateStr,S.slot)==='past') { toast('That slot has already passed'); return; }
+  S.players=1;
+  var dl = DAYS[S.dateObj.getDay()]+', '+S.dateObj.getDate()+' '+MONTHS[S.dateObj.getMonth()];
+  document.getElementById('det-time').textContent = S.slot+' – '+S.slotEnd;
+  document.getElementById('det-meta').textContent = dl+' · 1 hour';
+  document.getElementById('p-disp').textContent = 1;
+  setSkill(S.slotSkill||SKILLS[0]);
+  updateStepBounds(); updateOpenInfo();
+  haptic('medium'); go('details',1);
+}
+function stepP(d) {
+  var nv=S.players+d; if(nv<1||nv>4) return;
+  haptic('light'); S.players=nv;
+  document.getElementById('p-disp').textContent=nv;
+  updateStepBounds(); updateOpenInfo();
+}
+function updateStepBounds() {
+  document.getElementById('st-minus').disabled = S.players<=1;
+  document.getElementById('st-plus').disabled  = S.players>=4;
+}
+function updateOpenInfo() {
+  var open=4-S.players, box=document.getElementById('oi-box');
+  if (open>0) {
+    box.style.display='flex';
+    document.getElementById('oi-txt').textContent =
+      open+' open spot'+(open>1?'s':'')+' will be visible for other residents to join.';
+  } else { box.style.display='none'; }
+}
+function setSkill(sk) {
+  S.skill=sk;
+  document.querySelectorAll('.sk-btn').forEach(function(b){
+    b.className = 'sk-btn';
+    if (b.getAttribute('data-sk')===sk) b.classList.add('sk-sel-'+sk);
+  });
+  haptic('light');
+}
+
+/* ══════════ REVIEW ══════════ */
+function goReview() {
+  if (!S.skill) { toast('Please select a skill level'); return; }
+  var skI = {beginner:'🟦 Beginner', intermediate:'🟨 Intermediate', advanced:'🟥 Advanced'};
+  var open = 4-S.players;
+  var dl   = DAYS[S.dateObj.getDay()]+', '+S.dateObj.getDate()+' '+MONTHS[S.dateObj.getMonth()];
+  document.getElementById('rv-name').textContent    = S.name;
+  document.getElementById('rv-apt').textContent     = S.apt;
+  document.getElementById('rv-date').textContent    = dl;
+  document.getElementById('rv-time').textContent    = S.slot+' – '+S.slotEnd;
+  document.getElementById('rv-skill').textContent   = skI[S.skill];
+  document.getElementById('rv-players').textContent = S.players+' player'+(S.players>1?'s':'');
+  var wrap=document.getElementById('rv-open-wrap'), chips=document.getElementById('rv-open-chips');
+  if (open>0) {
+    wrap.style.display='block'; chips.innerHTML='';
+    for (var i=0;i<open;i++) {
+      var c=document.createElement('div'); c.className='oc-chip'; c.textContent='Open Spot '+(i+1); chips.appendChild(c);
+    }
+  } else { wrap.style.display='none'; }
+  haptic('medium'); go('review',1);
+}
+
+/* ══════════ CONFIRM ══════════ */
+function confirmBooking() {
+  haptic('heavy');
+  var ref = 'BCM-'+Math.random().toString(36).substr(2,4).toUpperCase()+'-'+Math.floor(Math.random()*900+100);
+  var open=4-S.players;
+  var dl  = DAYS[S.dateObj.getDay()]+', '+S.dateObj.getDate()+' '+MONTHS[S.dateObj.getMonth()];
+  var ex  = gSlot(S.dateStr,S.slot);
+  sSlot(S.dateStr,S.slot,Math.min(ex.players+S.players,4),S.skill);
+  S.lastSlot=S.slot;
+  document.getElementById('sc-ref-val').textContent = ref;
+  document.getElementById('sc-dt').textContent      = dl+', '+S.slot;
+  document.getElementById('sc-skill').textContent   = SKILL_LABELS[S.skill];
+  var or=document.getElementById('sc-open-row');
+  if (open>0){ or.style.display='flex'; document.getElementById('sc-open').textContent=open+' spot'+(open>1?'s':'')+' open to join'; }
+  else { or.style.display='none'; }
+  go('success',1);
+}
+function goViewSlots() {
+  var ls=S.lastSlot; S.slot=null; S.players=1; S.skill=null;
+  renderRail(); updateSelBar();
+  go('slots',-1);
+  if (ls) {
+    setTimeout(function(){
+      var blk=document.getElementById('blk-'+ls.replace(':',''));
+      if(blk){ blk.classList.add('flashing'); setTimeout(function(){ blk.classList.remove('flashing'); },900); blk.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'}); }
+    },360);
+  }
+}
+function navBook() {
+  document.querySelectorAll('.bnav-btn').forEach(function(b){ b.classList.remove('on'); });
+  event.currentTarget.classList.add('on');
+  if (S.name) go('slots',0);
+}
+
+/* ══════════ BOOT ══════════ */
+seedMocks();
+setInterval(tickClock, 1000);
+tickClock();
+
+/* Register Service Worker only when served from http/https (not file://) */
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./sw.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
